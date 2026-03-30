@@ -600,14 +600,16 @@ def compute_crop_window_tf_batch(pts=None, H=None, W=None, poses=None, K=None, c
   B = len(poses)
   torch.set_default_tensor_type('torch.cuda.FloatTensor')
   if method=='box_3d':
-    radius = mesh_diameter*crop_ratio/2
+    dtype = poses.dtype
+    device = poses.device
+    radius = float(mesh_diameter) * float(crop_ratio) / 2.0
     offsets = torch.tensor([0,0,0,
                         radius,0,0,
                         -radius,0,0,
                         0,radius,0,
-                        0,-radius,0]).reshape(-1,3)
+                        0,-radius,0], dtype=dtype, device=device).reshape(-1,3)
     pts = poses[:,:3,3].reshape(-1,1,3)+offsets.reshape(1,-1,3)
-    K = torch.as_tensor(K)
+    K = torch.as_tensor(K, dtype=dtype, device=device)
     projected = (K@pts.reshape(-1,3).T).T
     uvs = projected[:,:2]/projected[:,2:3]
     uvs = uvs.reshape(B, -1, 2)

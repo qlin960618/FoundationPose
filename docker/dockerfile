@@ -1,60 +1,169 @@
-FROM nvidia/cudagl:11.3.0-devel-ubuntu20.04
+FROM nvidia/cuda:12.8.1-devel-ubuntu22.04
 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=US/Pacific
+ENV CONDA_ENV_NAME=foundationpose
+ENV TORCH_CUDA_ARCH_LIST=12.0
+ENV FORCE_CUDA=1
+ENV OPENCV_IO_ENABLE_OPENEXR=1
+
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update --fix-missing && \
-    apt-get install -y libgtk2.0-dev && \
-    apt-get install -y wget bzip2 ca-certificates curl git vim tmux g++ gcc build-essential cmake checkinstall gfortran libjpeg8-dev libtiff5-dev pkg-config yasm libavcodec-dev libavformat-dev libswscale-dev libdc1394-22-dev libxine2-dev libv4l-dev qt5-default libgtk2.0-dev libtbb-dev libatlas-base-dev libfaac-dev libmp3lame-dev libtheora-dev libvorbis-dev libxvidcore-dev libopencore-amrnb-dev libopencore-amrwb-dev x264 v4l-utils libprotobuf-dev protobuf-compiler libgoogle-glog-dev libgflags-dev libgphoto2-dev libhdf5-dev doxygen libflann-dev libboost-all-dev proj-data libproj-dev libyaml-cpp-dev cmake-curses-gui libzmq3-dev freeglut3-dev
-
-
-RUN cd / && git clone https://github.com/pybind/pybind11 &&\
-    cd pybind11 && git checkout v2.10.0 &&\
-    mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF &&\
-    make -j6 && make install
-
-
-RUN cd / && wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz &&\
-    tar xvzf ./eigen-3.4.0.tar.gz &&\
-    cd eigen-3.4.0 &&\
-    mkdir build &&\
-    cd build &&\
-    cmake .. &&\
-    make install
+    apt-get install -y --no-install-recommends \
+      bash \
+      bzip2 \
+      ca-certificates \
+      cmake \
+      curl \
+      ffmpeg \
+      freeglut3-dev \
+      g++ \
+      gcc \
+      gfortran \
+      git \
+      gnupg \
+      libatlas-base-dev \
+      libboost-all-dev \
+      libegl1 \
+      libflann-dev \
+      libgflags-dev \
+      libgl1 \
+      libglib2.0-0 \
+      libgoogle-glog-dev \
+      libgphoto2-dev \
+      libgtk-3-dev \
+      libhdf5-dev \
+      libjpeg-dev \
+      libopencv-dev \
+      libproj-dev \
+      libprotobuf-dev \
+      libsm6 \
+      libtbb-dev \
+      libtiff-dev \
+      libv4l-dev \
+      libx11-6 \
+      libxext6 \
+      libxrender1 \
+      libyaml-cpp-dev \
+      ninja-build \
+      pkg-config \
+      proj-data \
+      protobuf-compiler \
+      software-properties-common \
+      tmux \
+      vim \
+      wget \
+      yasm && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -sSf https://librealsense.realsenseai.com/Debian/librealsenseai.asc | \
+      gpg --dearmor > /etc/apt/keyrings/librealsenseai.gpg && \
+    . /etc/os-release && \
+    echo "deb [signed-by=/etc/apt/keyrings/librealsenseai.gpg] https://librealsense.realsenseai.com/Debian/apt-repo ${VERSION_CODENAME} main" \
+      > /etc/apt/sources.list.d/librealsense.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      librealsense2-dev \
+      librealsense2-utils && \
+    rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "--login", "-c"]
 
-RUN cd / && wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /miniconda.sh && \
-    /bin/bash /miniconda.sh -b -p /opt/conda &&\
-    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh &&\
-    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc &&\
-    /bin/bash -c "source ~/.bashrc" && \
-    /opt/conda/bin/conda update -n base -c defaults conda -y &&\
-    /opt/conda/bin/conda create -n my python=3.8
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O /tmp/miniforge.sh && \
+    bash /tmp/miniforge.sh -b -p /opt/conda && \
+    rm -f /tmp/miniforge.sh && \
+    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    /opt/conda/bin/conda config --system --set channel_priority strict && \
+    /opt/conda/bin/conda create -n ${CONDA_ENV_NAME} python=3.10 -y
 
+ENV PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin:/opt/conda/bin:${PATH}
+ENV CONDA_DEFAULT_ENV=${CONDA_ENV_NAME}
+ENV CONDA_PREFIX=/opt/conda/envs/${CONDA_ENV_NAME}
+ENV CMAKE_PREFIX_PATH=/opt/conda/envs/${CONDA_ENV_NAME}:/opt/conda/envs/${CONDA_ENV_NAME}/lib/python3.10/site-packages/pybind11/share/cmake/pybind11
 
-ENV PATH $PATH:/opt/conda/envs/my/bin
+RUN conda init bash && \
+    echo "conda activate ${CONDA_ENV_NAME}" >> ~/.bashrc && \
+    conda activate ${CONDA_ENV_NAME} && \
+    conda install -y -c conda-forge eigen=3.4.0 pybind11=2.12.0 && \
+    python -m pip install --upgrade pip wheel && \
+    python -m pip install "setuptools<70"
 
-RUN conda init bash &&\
-    echo "conda activate my" >> ~/.bashrc &&\
-    conda activate my &&\
-    pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118 &&\
-    pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" &&\
-    pip install scipy joblib scikit-learn ruamel.yaml trimesh pyyaml opencv-python imageio open3d transformations warp-lang einops kornia pyrender
+RUN conda activate ${CONDA_ENV_NAME} && \
+    python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 && \
+    python -m pip install "setuptools<70" && \
+    python -m pip install \
+      albumentations==1.4.2 \
+      bokeh==3.4.0 \
+      colorama==0.4.6 \
+      einops==0.7.0 \
+      fvcore==0.1.5.post20221221 \
+      g4f==0.2.7.1 \
+      GPUtil==1.4.0 \
+      h5py==3.10.0 \
+      imageio==2.34.0 \
+      imgaug==0.4.0 \
+      ipywidgets==8.1.2 \
+      joblib==1.3.2 \
+      jupyterlab==4.1.5 \
+      kornia==0.7.2 \
+      meshcat==0.3.2 \
+      nodejs==0.1.1 \
+      numba==0.59.1 \
+      numpy==1.26.4 \
+      objaverse==0.1.7 \
+      omegaconf==2.3.0 \
+      open3d==0.18.0 \
+      openpyxl==3.1.2 \
+      opencv-contrib-python==4.9.0.80 \
+      opencv-python==4.9.0.80 \
+      Panda3D==1.10.14 \
+      pin==2.7.0 \
+      plotly==5.20.0 \
+      pybind11==2.12.0 \
+      pybullet==3.2.6 \
+      pycocotools==2.0.7 \
+      pyglet==1.5.28 \
+      pyOpenGL>=3.1.0 \
+      pyOpenGL_accelerate>=3.1.0 \
+      pypng==0.20220715.0 \
+      pyrender==0.1.45 \
+      pysdf==0.1.9 \
+      python-dateutil \
+      pyyaml==6.0.1 \
+      py-spy==0.3.14 \
+      roma==1.4.4 \
+      rtree==1.2.0 \
+      ruamel.yaml==0.18.6 \
+      scikit-image==0.22.0 \
+      scikit-learn==1.4.1.post1 \
+      scipy==1.12.0 \
+      seaborn==0.13.2 \
+      simplejson==3.19.2 \
+      timm==0.9.16 \
+      transformations==2024.6.1 \
+      trimesh==4.2.2 \
+      ultralytics==8.0.120 \
+      videoio==0.2.8 \
+      wandb==0.16.5 \
+      warp-lang==1.0.2 \
+      webdataset==0.2.86 \
+      xatlas==0.0.9 \
+      xlsxwriter==3.2.0 \
+      pyrealsense2==2.57.7
 
-RUN cd / && git clone --recursive https://github.com/NVIDIAGameWorks/kaolin
-RUN conda activate my && cd /kaolin &&\
-    FORCE_CUDA=1 python setup.py develop
+RUN git clone --recursive https://github.com/NVIDIAGameWorks/kaolin /kaolin && \
+    conda activate ${CONDA_ENV_NAME} && \
+    cd /kaolin && \
+    IGNORE_TORCH_VER=1 python setup.py develop
 
-RUN cd / && git clone https://github.com/NVlabs/nvdiffrast &&\
-    conda activate my && cd /nvdiffrast && pip install .
+RUN git clone https://github.com/NVlabs/nvdiffrast /nvdiffrast && \
+    conda activate ${CONDA_ENV_NAME} && \
+    cd /nvdiffrast && \
+    python -m pip install . --no-build-isolation
 
-ENV OPENCV_IO_ENABLE_OPENEXR=1
-
-RUN conda activate my &&\
-    pip install scikit-image meshcat webdataset omegaconf pypng roma seaborn opencv-contrib-python openpyxl wandb imgaug Ninja xlsxwriter timm albumentations xatlas rtree nodejs jupyterlab objaverse g4f ultralytics==8.0.120 pycocotools videoio numba &&\
-    conda install -y -c anaconda h5py
-
+RUN conda activate ${CONDA_ENV_NAME} && \
+    python -m pip install --no-build-isolation "git+https://github.com/facebookresearch/pytorch3d.git@stable"
 
 ENV SHELL=/bin/bash
 RUN ln -sf /bin/bash /bin/sh

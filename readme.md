@@ -124,6 +124,47 @@ CMAKE_PREFIX_PATH=$CONDA_PREFIX/lib/python3.9/site-packages/pybind11/share/cmake
 ```
 
 
+# Running on RTX 5090 / Blackwell
+
+The original Docker and conda recipes in this repo target an older CUDA 11.x / 11.8 stack. That can work for older GPUs, but for RTX 5090 it is safer to use a newer driver plus a CUDA 12.x PyTorch build, then rebuild all custom extensions inside that environment.
+
+Recommended approach:
+
+1. Install a recent NVIDIA driver on the host.
+1. Create a fresh Python environment.
+1. Install a recent PyTorch wheel built for CUDA 12.x.
+1. Install the remaining project dependencies.
+1. Rebuild the local C++ / CUDA extensions with `TORCH_CUDA_ARCH_LIST=12.0`.
+
+Example flow:
+
+```bash
+conda create -n foundationpose5090 python=3.10 -y
+conda activate foundationpose5090
+
+conda install -c conda-forge eigen=3.4.0 -y
+export CMAKE_PREFIX_PATH="$CONDA_PREFIX:$CONDA_PREFIX/lib/python3.10/site-packages/pybind11/share/cmake/pybind11"
+
+# Install a recent CUDA 12.x PyTorch build that supports Blackwell.
+# Pick the exact command from https://pytorch.org/get-started/locally/ for your system.
+python -m pip install --upgrade pip
+python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
+python -m pip install -r requirements.txt --no-deps
+python -m pip install --quiet --no-cache-dir git+https://github.com/NVlabs/nvdiffrast.git --no-build-isolation
+python -m pip install --quiet --no-cache-dir pytorch3d
+
+export TORCH_CUDA_ARCH_LIST="12.0"
+CMAKE_PREFIX_PATH=$CONDA_PREFIX/lib/python3.10/site-packages/pybind11/share/cmake/pybind11 bash build_all_conda.sh
+```
+
+Notes:
+
+- The old `docker/dockerfile` is based on CUDA 11.3, so it should be treated as a legacy path for 5090.
+- `requirements.txt` pins `torch==2.0.0+cu118`; on 5090 you should install the newer PyTorch package first, then install the rest of the requirements without letting pip downgrade torch.
+- If `nvdiffrast` or the local CUDA extensions fail to compile, confirm that your active PyTorch build is CUDA 12.x and that `TORCH_CUDA_ARCH_LIST=12.0` is exported in the same shell where you build.
+
+
 # Run model-based demo
 The paths have been set in argparse by default. If you need to change the scene, you can pass the args accordingly. By running on the demo data, you should be able to see the robot manipulating the mustard bottle. Pose estimation is conducted on the first frame, then it automatically switches to tracking mode for the rest of the video. The resulting visualizations will be saved to the `debug_dir` specified in the argparse. (Note the first time running could be slower due to online compilation)
 ```
