@@ -1,0 +1,30 @@
+newmtl lambert7SG # Orange cap
+illum 2
+Kd 1.0 0.5 0.00
+Ka 0.20 0.20 0.20
+Ks 0.20 0.20 0.20
+Ns 10
+
+newmtl lambert8SG # Black jig
+illum 2
+Kd 0.1 0.1 0.1
+Ka 0.20 0.20 0.20
+Ks 0.10 0.10 0.10
+Ns 10
+
+newmtl lambert9SG # Glass
+illum 4
+Kd 0.89 0.89 0.89
+Ka 0.20 0.20 0.20
+Ks 0.80 0.80 0.80
+d 0.5
+Tr 0.5
+Ni 1.50
+
+newmtl lambert10SG # Label
+illum 2
+Kd 1.00 1.00 1.00
+Ka 0.20 0.20 0.20
+Ks 0.80 0.80 0.80
+map_Kd SquareBottleLabel100ml.png
+Ns 10

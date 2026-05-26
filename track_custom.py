@@ -25,6 +25,9 @@ DEFAULT_DA2_CHECKPOINT = "/mnt/e/Github/FoundationPose/weights/DepthAnything/dep
 DEFAULT_DA2_ENCODER = "vitb"
 DEFAULT_REALSENSE_PRESET = "/mnt/e/Github/FoundationPose/preset/real_sense.json"
 DEPTH_DISPLAY_RANGE_M = (0.02, 1.00)
+# DEFAULT_MESH_FILE = "/demo_data/pipette_300ul/mesh/sartoriusPicus2_m.obj"
+# DEFAULT_MESH_FILE = "/demo_data/bottle/mesh/square_bottle_and_cap_flatten_m.obj"
+DEFAULT_MESH_FILE = "/demo_data/bottle/mesh/suquarebottlecapwithjig_reoriented.obj"
 
 
 class OpenCVCapture:
@@ -128,7 +131,7 @@ def parse_args():
   parser.add_argument(
     "--mesh_file",
     type=str,
-    default=f"{code_dir}/demo_data/pipette_300ul/mesh/sartoriusPicus2_m.obj",
+    default=f"{code_dir}{DEFAULT_MESH_FILE}",
   )
   parser.add_argument("--camera_backend", type=str, default="realsense", choices=["realsense", "opencv"])
   parser.add_argument("--cam_index", type=int, default=4)

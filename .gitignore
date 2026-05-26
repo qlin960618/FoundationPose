@@ -13,7 +13,6 @@ foundationpose/
 build/
 develop-eggs/
 *.zip
-demo_data/*
 dist/
 # *.png
 # *.jpg
@@ -61,11 +60,9 @@ htmlcov/
 .coverage.*
 .cache
 nosetests.xml
-demo_data/
 debug/
 coverage.xml
 *.cover
-demo_data/
 debug/
 weights/
 *.py,cover
@@ -156,3 +153,9 @@ data/
 logs/
 !BundleTrack/XMem/inference/data
 run_used.yml
+
+# Demo data: ignore everything except mesh directories at any depth.
+/demo_data/**
+!/demo_data/**/
+!/demo_data/**/mesh/
+!/demo_data/**/mesh/**
